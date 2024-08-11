@@ -265,19 +265,6 @@ function Builder({
     return CanDeleteStep(step, sourceSequence);
   }
 
-  const validatorConfiguration: ValidatorConfiguration = {
-    step: (step, parent, definition) =>
-      stepValidator(step, parent, definition, setStepValidationError),
-    root: (def) => globalValidator(def, setGlobalValidationError),
-  };
-
-  const stepsConfiguration: StepsConfiguration = {
-    iconUrlProvider: IconUrlProvider,
-    canDeleteStep: CanDeleteStep,
-    canMoveStep: CanMoveStep,
-    isDraggable: IsStepDraggable,
-  };
-
   function closeGenerateModal() {
     setGenerateModalIsOpen(false);
   }
@@ -285,10 +272,6 @@ function Builder({
   const closeWorkflowExecutionResultsModal = () => {
     setTestRunModalOpen(false);
     setRunningWorkflowExecution(null);
-  };
-
-  const handleSwitchChange = (value: boolean) => {
-    setUseReactFlow(value);
   };
 
   const getworkflowStatus = () => {
@@ -315,27 +298,6 @@ function Builder({
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <div className="pl-4 flex items-center space-x-3">
-          <Switch
-            id="switch"
-            name="switch"
-            checked={useReactFlow}
-            onChange={handleSwitchChange}
-          />
-          <label
-            htmlFor="switch"
-            className="text-tremor-default text-tremor-content dark:text-dark-tremor-content"
-          >
-            Switch to New Builder
-          </label>
-        </div>
-        {useReactFlow && <BuilderChanagesTracker 
-          onDefinitionChange={(def: any) =>
-          setDefinition(wrapDefinition(def))
-        }
-        />}
-      </div>
       <Modal
         onRequestClose={closeGenerateModal}
         isOpen={generateModalIsOpen}
@@ -359,39 +321,20 @@ function Builder({
       {generateModalIsOpen || testRunModalOpen ? null : (
         <>
           {getworkflowStatus()}
-          {useReactFlow && (
-            <div className="h-[90%]">
-              <ReactFlowProvider>
-                <ReactFlowBuilder
-                  workflow={workflow}
-                  loadedAlertFile={loadedAlertFile}
-                  providers={providers}
-                  definition={definition}
-                  onDefinitionChange={(def: any) =>
-                    setDefinition(wrapDefinition(def))
-                  }
-                  toolboxConfiguration={getToolboxConfiguration(providers)}
-                />
-              </ReactFlowProvider>
-            </div>
-          )}
-          {!useReactFlow && (
-            <>
-              <SequentialWorkflowDesigner
+          <div className="h-[90%]">
+            <ReactFlowProvider>
+              <ReactFlowBuilder
+                workflow={workflow}
+                loadedAlertFile={loadedAlertFile}
+                providers={providers}
                 definition={definition}
-                onDefinitionChange={setDefinition}
-                stepsConfiguration={stepsConfiguration}
-                validatorConfiguration={validatorConfiguration}
-                toolboxConfiguration={getToolboxConfiguration(providers)}
-                undoStackSize={10}
-                controlBar={true}
-                globalEditor={<GlobalEditor />}
-                stepEditor={
-                  <StepEditor installedProviders={installedProviders} />
+                onDefinitionChange={(def: any) =>
+                  setDefinition(wrapDefinition(def))
                 }
+                toolboxConfiguration={getToolboxConfiguration(providers)}
               />
-            </>
-          )}
+            </ReactFlowProvider>
+          </div>
         </>
       )}
     </>

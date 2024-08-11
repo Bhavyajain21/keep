@@ -30,25 +30,6 @@ function EditorLayout({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-col m-2.5">{children}</div>;
 }
 
-export function GlobalEditor() {
-  const { properties, setProperty } = useGlobalEditor()
-  return (
-    <EditorLayout>
-      <Title>Keep Workflow Editor</Title>
-      <Text>
-        Use this visual workflow editor to easily create or edit existing Keep
-        workflow YAML specifications.
-      </Text>
-      <Text className="mt-5">
-        Use the toolbox to add steps, conditions and actions to your workflow
-        and click the `Generate` button to compile the workflow / `Deploy`
-        button to deploy the workflow to Keep.
-      </Text>
-      {WorkflowEditor(properties, setProperty)}
-    </EditorLayout>
-  );
-}
-
 export function GlobalEditorV2() {
   const { v2Properties: properties, updateV2Properties: setProperty } = useStore();
   const [localProperties, setLocalProperties] = useState(properties);
@@ -283,149 +264,6 @@ function KeepForeachEditor({ properties, updateProperty }: keepEditorProps) {
   );
 }
 
-function WorkflowEditor(properties: Properties, updateProperty: any) {
-  /**
-   * TODO: support generate, add more triggers and complex filters
-   *  Need to think about UX for this
-   */
-  const propertyKeys = Object.keys(properties).filter(
-    (k) => k !== "isLocked" && k !== "id"
-  );
-
-  const updateAlertFilter = (filter: string, value: string) => {
-    const currentFilters = properties.alert as {};
-    const updatedFilters = { ...currentFilters, [filter]: value };
-    updateProperty("alert", updatedFilters);
-  };
-
-  const addFilter = () => {
-    const filterName = prompt("Enter filter name");
-    if (filterName) {
-      updateAlertFilter(filterName, "");
-    }
-  };
-
-  const addTrigger = (trigger: "manual" | "interval" | "alert") => {
-    updateProperty(
-      trigger,
-      trigger === "alert" ? { source: "" } : trigger === "manual" ? "true" : ""
-    );
-  };
-
-  const deleteFilter = (filter: string) => {
-    const currentFilters = properties.alert as any;
-    delete currentFilters[filter];
-    updateProperty("alert", currentFilters);
-  };
-
-  return (
-    <>
-      <Title className="mt-2.5">Workflow Settings</Title>
-      <div className="w-1/2">
-        {Object.keys(properties).includes("manual") ? null : (
-          <Button
-            onClick={() => addTrigger("manual")}
-            className="mb-1"
-            size="xs"
-            color="orange"
-            variant="light"
-            icon={HandRaisedIcon}
-          >
-            Add Manual Trigger
-          </Button>
-        )}
-        {Object.keys(properties).includes("interval") ? null : (
-          <Button
-            onClick={() => addTrigger("interval")}
-            className="mb-1"
-            size="xs"
-            color="orange"
-            variant="light"
-            icon={ClockIcon}
-          >
-            Add Interval Trigger
-          </Button>
-        )}
-        {Object.keys(properties).includes("alert") ? null : (
-          <Button
-            onClick={() => addTrigger("alert")}
-            className="mb-1"
-            size="xs"
-            color="orange"
-            variant="light"
-            icon={BellSnoozeIcon}
-          >
-            Add Alert Trigger
-          </Button>
-        )}
-      </div>
-      {propertyKeys.map((key, index) => {
-        return (
-          <div key={index}>
-            <Text className="capitalize mt-2.5">{key}</Text>
-            {key === "manual" ? (
-              <div key={key}>
-                <input
-                  type="checkbox"
-                  checked={properties[key] === "true"}
-                  onChange={(e) =>
-                    updateProperty(key, e.target.checked ? "true" : "false")
-                  }
-                />
-              </div>
-            ) : key === "alert" ? (
-              <>
-                <div className="w-1/2">
-                  <Button
-                    onClick={addFilter}
-                    size="xs"
-                    className="ml-1 mt-1"
-                    variant="light"
-                    color="gray"
-                    icon={FunnelIcon}
-                  >
-                    Add Filter
-                  </Button>
-                </div>
-                {properties.alert &&
-                  Object.keys(properties.alert as {}).map((filter) => {
-                    return (
-                      <>
-                        <Subtitle className="mt-2.5">{filter}</Subtitle>
-                        <div className="flex items-center mt-1" key={filter}>
-                          <TextInput
-                            key={filter}
-                            placeholder={`Set alert ${filter}`}
-                            onChange={(e: any) =>
-                              updateAlertFilter(filter, e.target.value)
-                            }
-                            value={(properties.alert as any)[filter] as string}
-                          />
-                          <Icon
-                            icon={BackspaceIcon}
-                            className="cursor-pointer"
-                            color="red"
-                            tooltip={`Remove ${filter} filter`}
-                            onClick={() => deleteFilter(filter)}
-                          />
-                        </div>
-                      </>
-                    );
-                  })}
-              </>
-            ) : (
-              <TextInput
-                placeholder={`Set the ${key}`}
-                onChange={(e: any) => updateProperty(key, e.target.value)}
-                value={properties[key] as string}
-              />
-            )}
-          </div>
-        );
-      })}
-    </>
-  );
-}
 function WorkflowEditorV2({
   initialProperties,
   onUpdate,
@@ -592,8 +430,6 @@ function WorkflowEditorV2({
   );
 }
 
-
-
 export function StepEditorV2({
   installedProviders,
 }: {
@@ -697,59 +533,6 @@ export function StepEditorV2({
       >
         Save
       </button>
-    </EditorLayout>
-  );
-}
-
-export default function StepEditor({
-  installedProviders,
-}: {
-  installedProviders?: Provider[] | undefined | null;
-}) {
-  const { type, componentType, name, setName, properties, setProperty } =
-    useStepEditor();
-
-  function onNameChanged(e: any) {
-    setName(e.target.value);
-  }
-
-
-  const providerType = type.split("-")[1];
-
-  return (
-    <EditorLayout>
-      <Title className="capitalize">{providerType} Editor</Title>
-      <Text className="mt-1">Unique Identifier</Text>
-      <TextInput
-        className="mb-2.5"
-        icon={KeyIcon}
-        value={name}
-        onChange={onNameChanged}
-      />
-      {type.includes("step-") || type.includes("action-") ? (
-        <KeepStepEditor
-          properties={properties}
-          updateProperty={setProperty}
-          installedProviders={installedProviders}
-          providerType={providerType}
-          type={type}
-        />
-      ) : type === "condition-threshold" ? (
-        <KeepThresholdConditionEditor
-          properties={properties}
-          updateProperty={setProperty}
-        />
-      ) : type.includes("foreach") ? (
-        <KeepForeachEditor
-          properties={properties}
-          updateProperty={setProperty}
-        />
-      ) : type === "condition-assert" ? (
-        <KeepAssertConditionEditor
-          properties={properties}
-          updateProperty={setProperty}
-        />
-      ) : null}
     </EditorLayout>
   );
 }
