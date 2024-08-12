@@ -265,11 +265,15 @@ function Builder({
     return CanDeleteStep(step, sourceSequence);
   }
 
-  const validatorConfiguration: ValidatorConfiguration|{step:(step:any)=>boolean;root:(def:any)=>boolean;} = {
+  const validatorConfiguration: {
+    step: (step: any, parent?: any, definition?: any) => boolean;
+    root: (def: Definition) => boolean;
+  } = {
     step: (step, parent, definition) =>
-      stepValidator(step, parent, definition, setStepValidationError),
+      stepValidator ? stepValidator(step, parent, definition, setStepValidationError) : true,
     root: (def) => globalValidator(def, setGlobalValidationError),
   };
+  
 
   const stepsConfiguration: StepsConfiguration = {
     iconUrlProvider: IconUrlProvider,

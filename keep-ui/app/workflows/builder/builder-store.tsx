@@ -317,11 +317,13 @@ const useStore = create<FlowState>((set, get) => ({
           id: newUuid,
           name: step.name,
           type: step.type,
-          componentType: step.componentType
+          componentType: step.componentType,
         },
         isDraggable: true,
         dragHandle: '.custom-drag-handle',
+        isNested: false, // or true, depending on your logic
       };
+      
 
       set({ nodes: [...get().nodes, newNode] });
     } catch (err) {
@@ -364,9 +366,10 @@ const useStore = create<FlowState>((set, get) => ({
     const sources = [...new Set(edges.filter((edge) => startNode.id === edge.target))];
     const targets = [...new Set(edges.filter((edge) => endNode.id === edge.source))];
     targets.forEach((edge) => {
-      finalEdges = [...finalEdges, ...sources.map((source) => createCustomEdgeMeta(source.source, edge.target, source.label)
+      finalEdges = [...finalEdges, ...sources.map((source) => 
+        createCustomEdgeMeta(source.source, edge.target, source.label?.toString())
       )];
-    });
+    });    
 
     const newNodes = [...nodes.slice(0, nodeStartIndex), ...nodes.slice(endIndex + 1)];
 
