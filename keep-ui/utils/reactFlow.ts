@@ -7,6 +7,29 @@ function getKeyBasedSquence(step:any, id:string,  type:string) {
     return `${step.type}__${id}__empty_${type}`;
 }
 
+interface Position {
+    x: number;
+    y: number;
+  }
+  
+  interface Step {
+    componentType: string;
+    type: string;
+    branches?: {
+      true?: any[];
+      false?: any[];
+    };
+    [key: string]: any; // Extendable for other properties
+  }
+  
+  interface HandleSwitchNodeArgs {
+    step: Step;
+    position: Position;
+    nextNodeId: string;
+    prevNodeId: string;
+    nodeId: string;
+    isNested?: boolean;
+  }
 
 export function reConstructWorklowToDefinition({
     nodes,
@@ -177,79 +200,87 @@ export function createSwitchNodeV2(
 
 
 
-export function handleSwitchNode(step, position, nextNodeId, prevNodeId, nodeId, isNested) {
+export function handleSwitchNode({
+    step,
+    position,
+    nextNodeId,
+    prevNodeId,
+    nodeId,
+    isNested
+  }: HandleSwitchNodeArgs): { nodes: FlowNode[], edges: Edge[] } {
     if (step.componentType !== "switch") {
-        return { nodes: [], edges: [] };
+      return { nodes: [], edges: [] };
     }
+  
     let trueBranches = step?.branches?.true || [];
     let falseBranches = step?.branches?.false || [];
-
-
+  
     function _getEmptyNode(type: string) {
-        const key = `empty_${type}`
-        return {
-            id: `${step.type}__${nodeId}__${key}`,
-            type: key,
-            componentType: key,
-            name: "empty",
-            properties: {},
-            isNested: true,
-        }
+      const key = `empty_${type}`;
+      return {
+        id: `${step.type}__${nodeId}__${key}`,
+        type: key,
+        componentType: key,
+        name: "empty",
+        properties: {},
+        isNested: true,
+      };
     }
-
+  
     let [switchStartNode, switchEndNode] = createSwitchNodeV2(step, nodeId, position, nextNodeId, prevNodeId, isNested);
+    
     trueBranches = [
-        { ...switchStartNode.data, type: 'temp_node', componentType: "temp_node" },
-        ...trueBranches,
-        _getEmptyNode("true"),
-        { ...switchEndNode.data, type: 'temp_node', componentType: "temp_node" }
+      { ...switchStartNode.data, type: 'temp_node', componentType: "temp_node" },
+      ...trueBranches,
+      _getEmptyNode("true"),
+      { ...switchEndNode.data, type: 'temp_node', componentType: "temp_node" }
     ];
+  
     falseBranches = [
-        { ...switchStartNode.data, type: 'temp_node', componentType: "temp_node" },
-        ...falseBranches,
-        _getEmptyNode("false"),
-        { ...switchEndNode.data, type: 'temp_node', componentType: "temp_node" }
-    ]
-
+      { ...switchStartNode.data, type: 'temp_node', componentType: "temp_node" },
+      ...falseBranches,
+      _getEmptyNode("false"),
+      { ...switchEndNode.data, type: 'temp_node', componentType: "temp_node" }
+    ];
+  
     let truePostion = { x: position.x - 200, y: position.y - 100 };
     let falsePostion = { x: position.x + 200, y: position.y - 100 };
-
-    let { nodes: trueBranchNodes, edges: trueSubflowEdges } =
-        processWorkflowV2(trueBranches, truePostion, false, true) || {};
-    let { nodes: falseSubflowNodes, edges: falseSubflowEdges } =
-        processWorkflowV2(falseBranches, falsePostion, false, true) || {};
-
+  
+    let { nodes: trueBranchNodes, edges: trueSubflowEdges } = processWorkflowV2(trueBranches, truePostion, false, true) || {};
+    let { nodes: falseSubflowNodes, edges: falseSubflowEdges } = processWorkflowV2(falseBranches, falsePostion, false, true) || {};
+  
     function _adjustEdgeConnectionsAndLabelsForSwitch(type: string) {
-        if (!type) {
-            return;
-        }
-        const subflowEdges = type === 'True' ? trueSubflowEdges : falseSubflowEdges;
-        const subflowNodes = type === 'True' ? trueBranchNodes : falseSubflowNodes;
-        const [firstEdge] = subflowEdges;
-        firstEdge.label = type?.toString();
-        firstEdge.id = `e${switchStartNode.prevNodeId}-${firstEdge.target || switchEndNode.id
-            }`;
-        firstEdge.source = switchStartNode.id || "";
-        firstEdge.target = firstEdge.target || switchEndNode.id;
-        subflowEdges.pop();
+      if (!type) {
+        return;
+      }
+      const subflowEdges = type === 'True' ? trueSubflowEdges : falseSubflowEdges;
+      const subflowNodes = type === 'True' ? trueBranchNodes : falseSubflowNodes;
+      const [firstEdge] = subflowEdges;
+      firstEdge.label = type?.toString();
+      firstEdge.id = `e${switchStartNode.prevNodeId}-${firstEdge.target || switchEndNode.id}`;
+      firstEdge.source = switchStartNode.id || "";
+      firstEdge.target = firstEdge.target || switchEndNode.id;
+      subflowEdges.pop();
     }
+  
     _adjustEdgeConnectionsAndLabelsForSwitch('True');
     _adjustEdgeConnectionsAndLabelsForSwitch('False');
+  
     return {
-        nodes: [
-            switchStartNode,
-            ...trueBranchNodes,
-            ...falseSubflowNodes,
-            switchEndNode,
-        ], edges: [
-            ...trueSubflowEdges,
-            ...falseSubflowEdges,
-            //handling the switch end edge
-            createCustomEdgeMeta(switchEndNode.id, nextNodeId)
-        ]
+      nodes: [
+        switchStartNode,
+        ...trueBranchNodes,
+        ...falseSubflowNodes,
+        switchEndNode,
+      ], 
+      edges: [
+        ...trueSubflowEdges,
+        ...falseSubflowEdges,
+        createCustomEdgeMeta(switchEndNode.id, nextNodeId)
+      ]
     };
-
-}
+  }
+  
 
 export const createDefaultNodeV2 = (
     step: any,
@@ -293,7 +324,14 @@ export function createCustomEdgeMeta(source: string, target: string, label?: str
         style: { stroke: color || getRandomColor() }
     }
 }
-export function handleDefaultNode(step, position, nextNodeId, prevNodeId, nodeId, isNested) {
+export function handleDefaultNode({
+    step,
+    position,
+    nextNodeId,
+    prevNodeId,
+    nodeId,
+    isNested
+  }: HandleSwitchNodeArgs): { nodes: FlowNode[], edges: Edge[] } {
     const nodes = [];
     const edges = [];
     const newNode = createDefaultNodeV2(
@@ -314,7 +352,13 @@ export function handleDefaultNode(step, position, nextNodeId, prevNodeId, nodeId
     return { nodes, edges };
 }
 
-export function getForEachNode(step, position, nodeId, prevNodeId, nextNodeId, isNested) {
+export function getForEachNode(step: any, 
+    position: { x: number; y: number }, 
+    nodeId: string, 
+    prevNodeId: string | null, 
+    nextNodeId: string | null, 
+    isNested: boolean
+): FlowNode[] {
     const { sequence, ...rest } = step;
     const customIdentifier = `${step.type}__end__${nodeId}`;
 
@@ -332,7 +376,13 @@ export function getForEachNode(step, position, nodeId, prevNodeId, nextNodeId, i
         },
         {
             id: customIdentifier,
-            data: { ...rest, id: customIdentifier, name: "foreach end", label: "foreach end", type: `${step.type}__end`, name: 'Foreach End'},
+            data: { 
+                ...rest, 
+                id: customIdentifier, 
+                name: "Foreach End", 
+                label: "foreach end", 
+                type: `${step.type}__end`
+            },
             type: "custom",
             position: { x: 0, y: 0 },
             isDraggable: false,
@@ -340,12 +390,18 @@ export function getForEachNode(step, position, nodeId, prevNodeId, nextNodeId, i
             prevNodeId: prevNodeId,
             nextNodeId: nextNodeId,
             isNested: !!isNested
-        },
+        }
     ];
 }
 
 
-export function handleForeachNode(step, position, nextNodeId, prevNodeId, nodeId, isNested) {
+export function handleForeachNode(step: Step,
+    position: Position,
+    nextNodeId: string | null,
+    prevNodeId: string | null,
+    nodeId: string,
+    isNested: boolean
+): { nodes: FlowNode[]; edges: Edge[] } {
 
     const [forEachStartNode, forEachEndNode] = getForEachNode(step, position, nodeId, prevNodeId, nextNodeId, isNested);
 
@@ -376,9 +432,9 @@ export function handleForeachNode(step, position, nextNodeId, prevNodeId, nodeId
 export const processStepV2 = (
     step: any,
     position: { x: number; y: number },
-    nextNodeId?: string | null,
-    prevNodeId?: string | null,
-    isNested?: boolean
+    nextNodeId: string,
+    prevNodeId: string,
+    isNested: boolean
 ) => {
     const nodeId = step.id;
     let newNodes: FlowNode[] = [];
@@ -386,7 +442,14 @@ export const processStepV2 = (
     switch (true) {
         case step?.componentType === "switch":
             {
-                const { nodes, edges } = handleSwitchNode(step, position, nextNodeId, prevNodeId, nodeId, isNested);
+                const { nodes, edges } = handleSwitchNode({
+                    step,
+                    position,
+                    nextNodeId,
+                    prevNodeId,
+                    nodeId,
+                    isNested
+                });
                 newEdges = [...newEdges, ...edges];
                 newNodes = [...newNodes, ...nodes];
                 break;
@@ -400,7 +463,14 @@ export const processStepV2 = (
             }
         default:
             {
-                const { nodes, edges } = handleDefaultNode(step, position, nextNodeId, prevNodeId, nodeId, isNested);
+                const { nodes, edges } = handleDefaultNode({
+                    step,
+                    position,
+                    nextNodeId,
+                    prevNodeId,
+                    nodeId,
+                    isNested
+                });
                 newEdges = [...newEdges, ...edges];
                 newNodes = [...newNodes, ...nodes];
                 break;

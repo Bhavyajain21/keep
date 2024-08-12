@@ -44,8 +44,10 @@ const layoutOptions = {
   "elk.layered.edgeRouting.orthogonal": true
 }
 
+
 const getLayoutedElements = (nodes: FlowNode[], edges: Edge[], options = {}) => {
-  const isHorizontal = options?.['elk.direction'] === 'RIGHT';
+const isHorizontal = (options as { 'elk.direction'?: string })['elk.direction'] === 'RIGHT';
+
   const elk = new ELK();
 
   const graph = {
